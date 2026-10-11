@@ -142,6 +142,7 @@ const ui = {
   extraDates: [],      // dates beyond the next 14 days the user jumped to
   weeklyOpen: false,
   editTemplateId: null,
+  editFrom: "plan",    // tab the plan editor was opened from
   progress: { ex: null, metric: "e1rm", range: "3M" },
   bodyRange: "3M",
   bwDate: null,        // date shown on the Body log card (null = today)
@@ -544,7 +545,7 @@ function planPicker(date, { empty = false } = {}) {
 /* ---------- Plan ---------- */
 
 function viewPlan() {
-  if (ui.editTemplateId) return viewTemplateEditor(tplById(ui.editTemplateId));
+  if (ui.editTemplateId && ui.editFrom === "plan") return viewTemplateEditor(tplById(ui.editTemplateId));
   const today = todayStr();
   const dates = Array.from({ length: 14 }, (_, i) => addDays(today, i));
   for (const d of ui.extraDates) if (!dates.includes(d)) dates.push(d);
@@ -606,11 +607,11 @@ function viewPlan() {
 }
 
 function viewTemplateEditor(t) {
-  if (!t) { ui.editTemplateId = null; return viewPlan(); }
+  if (!t) { ui.editTemplateId = null; return ui.editFrom === "more" ? viewMore() : viewPlan(); }
   const available = [...state.exercises].sort((a, b) => a.name.localeCompare(b.name));
   const u = unit();
   return `
-    <button class="ghost" data-action="tpl-back" style="margin-left:-10px">‹ Plan</button>
+    <button class="ghost" data-action="tpl-back" style="margin-left:-10px">‹ ${ui.editFrom === "more" ? "More" : "Plan"}</button>
     <label class="field"><span>Plan name</span><input data-field="tpl-name" value="${esc(t.name)}"></label>
     <div class="card">
       <h3>Exercises</h3>
@@ -636,6 +637,7 @@ function viewTemplateEditor(t) {
       <button class="full" data-action="tpl-add">Add</button>
       <div class="row"><input class="grow" id="newExName" placeholder="New exercise, e.g. Cable Fly"><button data-action="tpl-add-new">Create</button></div>
     </div>
+    <button class="full" data-action="tpl-duplicate">Duplicate plan</button>
     <button class="danger full" data-action="tpl-delete">Delete plan</button>`;
 }
 
@@ -886,6 +888,7 @@ function viewBody() {
 /* ---------- More ---------- */
 
 function viewMore() {
+  if (ui.editTemplateId && ui.editFrom === "more") return viewTemplateEditor(tplById(ui.editTemplateId));
   const exercises = [...state.exercises].sort((a, b) => a.name.localeCompare(b.name));
   return `
     <h1 class="title">More</h1>
@@ -904,6 +907,17 @@ function viewMore() {
       <label class="field" id="goalField"><span>Goal bodyweight (${unit()})</span>
         <input data-field="goal" inputmode="decimal" placeholder="None" value="${state.settings.goalKg != null ? toDisplay(state.settings.goalKg) : ""}">
       </label>
+    </div>
+    <div class="card">
+      <h3>My plans</h3>
+      <div class="muted small">Rename, edit or delete plans, or make your own. Tap a plan to edit it.</div>
+      <ul class="list" style="margin-top:6px">
+        ${state.templates.map((t) => `<li class="tap" data-action="edit-tpl" data-id="${t.id}">
+          <div class="grow"><div class="t">${esc(t.name)}</div><div class="muted small">${esc(planSummary(t))}</div></div>
+          <span class="muted">Edit ›</span>
+        </li>`).join("")}
+      </ul>
+      <button class="dashed full" style="margin-top:8px" data-action="new-tpl">+ New plan</button>
     </div>
     <div class="card stack" id="profileCard">
       <h3>Body profile</h3>
@@ -1403,14 +1417,28 @@ const actions = {
   "cal-toggle": (el) => { ui.calOpen = ui.calOpen === el.dataset.date ? null : el.dataset.date; refresh(); },
   "cal-default": (el) => { delete state.calendar[el.dataset.date]; ui.calOpen = null; changed(); refresh(); },
   "toggle-weekly": () => { ui.weeklyOpen = !ui.weeklyOpen; refresh(); },
-  "edit-tpl": (el) => { ui.editTemplateId = el.dataset.id; refresh(); window.scrollTo(0, 0); },
+  "edit-tpl": (el) => { ui.editTemplateId = el.dataset.id; ui.editFrom = ui.tab; refresh(); window.scrollTo(0, 0); },
   "new-tpl": () => {
     const t = { id: uid(), name: "New plan", items: [] };
+    state.templates.push(t);
+    ui.editTemplateId = t.id;
+    ui.editFrom = ui.tab;
+    changed();
+    refresh();
+    window.scrollTo(0, 0);
+    const name = document.querySelector('[data-field="tpl-name"]');
+    name?.focus();
+    name?.select();
+  },
+  "tpl-duplicate": () => {
+    const src = tplById(ui.editTemplateId);
+    const t = { id: uid(), name: `${src.name} copy`, items: src.items.map((it) => ({ ...it })) };
     state.templates.push(t);
     ui.editTemplateId = t.id;
     changed();
     refresh();
     window.scrollTo(0, 0);
+    toast("Plan duplicated");
   },
   "tpl-back": () => { ui.editTemplateId = null; refresh(); window.scrollTo(0, 0); },
   "tpl-up": (el) => { if (moveItem(tplById(ui.editTemplateId).items, +el.dataset.i, -1)) { changed(); refresh(); } },
@@ -1540,7 +1568,7 @@ const actions = {
 document.addEventListener("click", (ev) => {
   const tab = ev.target.closest("#tabs button");
   if (tab) {
-    if (tab.dataset.tab !== "plan" && ui.editTemplateId && ui.tab === "plan") { ui.editTemplateId = null; ui.dirty.plan = true; }
+    if (ui.editTemplateId && tab.dataset.tab !== ui.editFrom) { ui.editTemplateId = null; ui.dirty.plan = ui.dirty.more = true; }
     showTab(tab.dataset.tab);
     return;
   }

@@ -1,5 +1,5 @@
 // App shell cache. Bump VERSION whenever app files change.
-const VERSION = "gymlog-v4";
+const VERSION = "gymlog-v5";
 const FILES = [
   "./",
   "./index.html",
