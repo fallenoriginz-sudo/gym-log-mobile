@@ -262,3 +262,23 @@ label.field > span { display: block; font-size: 13px; color: var(--muted); margi
 .kcal { display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: 14px; background: var(--bg); border: 1.5px solid transparent; }
 .kcal b { font-size: 20px; }
 .kcal.on { border-color: var(--accent); background: var(--accent-tint); }
+
+/* Forecast */
+.goal-step { display: flex; align-items: center; gap: 8px; }
+.goal-step button { width: 44px; height: 44px; padding: 0; font-size: 22px; }
+.goal-step b { min-width: 84px; text-align: center; font-size: 26px; font-weight: 800; }
+.goal-step small { font-size: 14px; color: var(--muted); font-weight: 600; }
+.eta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tile { background: var(--raised); border-radius: 16px; padding: 12px 14px; min-width: 0; }
+.tile .k { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.tile .v { font-size: 22px; font-weight: 800; margin-top: 2px; }
+.tile .s { font-size: 13px; color: var(--muted); }
+.tile.goal .v { color: var(--amber); }
+.fc-legend { flex-wrap: wrap; gap: 6px 14px; }
+.chart .band { fill: var(--accent); fill-opacity: .16; }
+.chart .fc-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 7 5; stroke-linejoin: round; }
+.chart .fc-now { fill: var(--accent); stroke: var(--card); stroke-width: 2; }
+.chart .past { fill: var(--soft); fill-opacity: .5; }
+.chart .past-line { fill: none; stroke: var(--soft); stroke-width: 2; stroke-linejoin: round; }
+.chart .today-line { stroke: var(--line2); stroke-dasharray: 3 4; }
+.view > * + .scroller { margin-top: 16px; }
