@@ -957,11 +957,67 @@ function fcChart(H, F, goal, months) {
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${Ht}" role="img" aria-label="Estimated max so far and the forecast ahead">${s}<g class="insp"></g></svg>`;
 }
 
+// Shown from the ? button on Forecast.
+const FC_HELP = `
+  <h3>What it predicts</h3>
+  <p>Your next best squat, bench or deadlift on a future date. It predicts the percentage change from your last best, then turns that back into kg.</p>
+  <h3>What it learned from</h3>
+  <p>2.2 million real before-and-after lift results from 271,000 raw lifters in OpenPowerlifting, a public-domain database.</p>
+  <h3>What it looks at</h3>
+  <ul>
+    <li>Your last best, and how strong you are for your bodyweight</li>
+    <li>How long you've been training, and how fast you've been improving</li>
+    <li>How far ahead you're looking</li>
+    <li>Your bodyweight plan. This matters most: lifters who gained weight gained more strength.</li>
+  </ul>
+  <h3>The model</h3>
+  <p>Hundreds of small decision trees, each correcting the mistakes of the ones before it (gradient boosting, LightGBM). A neural net, XGBoost, ridge regression and a stacked blend of them all were also tried. The blend was only about 0.01 kg better, so the app uses one compact model that runs on your phone with no internet.</p>
+  <h3>How accurate it is</h3>
+  <p>Tested on 688,000 results from 2024–2026 that it never saw:</p>
+  <ul>
+    <li>It's off by <b>7.1 kg on average</b> (about 4.7%). Guessing "same as last time" is off by 9.1 kg.</li>
+    <li>The real result landed inside the shaded range <b>80% of the time</b>.</li>
+    <li>Further ahead is less certain: about 5.6 kg off under two months, about 8.7 kg beyond eight months.</li>
+  </ul>
+  <h3>Keep in mind</h3>
+  <ul>
+    <li>It learned from competition maxes. Your app numbers are estimates from gym sets, so it may be a little cautious if you're a beginner.</li>
+    <li>It covers squat, bench and deadlift only.</li>
+    <li>It's a guide, not a promise. Sleep, food and consistency still decide the result.</li>
+  </ul>
+  <button class="full" style="margin-top:20px" data-action="fc-guide">Read the full guide</button>`;
+
+function openSheet(title, html) {
+  const el = document.getElementById("sheet");
+  el.innerHTML = `<div class="sheet-bg" data-action="sheet-close"></div>
+    <div class="sheet-card" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+      <div class="row between sheet-head"><h2>${esc(title)}</h2><button class="ghost icon" data-action="sheet-close" aria-label="Close">✕</button></div>
+      <div class="sheet-body">${html}</div>
+    </div>`;
+  el.hidden = false;
+  document.body.classList.add("sheet-open");
+}
+// The full guide is its own offline page, shown full screen in a frame so the app stays put.
+function openGuide() {
+  const el = document.getElementById("sheet");
+  el.innerHTML = `<div class="guide" role="dialog" aria-modal="true" aria-label="How the lift forecast works">
+      <div class="guide-bar"><b>How the forecast works</b><button class="guide-done" data-action="sheet-close">Done</button></div>
+      <iframe src="forecast-guide.html" title="How the lift forecast works"></iframe>
+    </div>`;
+  el.hidden = false;
+  document.body.classList.add("sheet-open");
+}
+function closeSheet() {
+  document.getElementById("sheet").hidden = true;
+  document.body.classList.remove("sheet-open");
+}
+
 const progressSwitch = () => `<div class="seg">${[["history", "History"], ["forecast", "Forecast"]].map(([k, l]) =>
   `<button class="${(ui.progress.view || "history") === k ? "on" : ""}" data-action="progress-view" data-v="${k}">${l}</button>`).join("")}</div>`;
 
 function viewForecast() {
-  const head = `<h1 class="title">Progress</h1>${progressSwitch()}`;
+  const head = `<div class="row between"><h1 class="title">Progress</h1>
+    <button class="help-btn" data-action="fc-help" aria-label="How the lift forecast works">?</button></div>${progressSwitch()}`;
   if (!fcModel) {
     loadForecastModel();
     return head + `<div class="card empty">${fcFailed
@@ -1049,7 +1105,7 @@ function viewForecast() {
   return `${head}${pills}${main}${planCard}
     <div><h2 style="margin:0 4px 4px">All lifts in 3 months</h2><ul class="list">${rows}</ul></div>
     ${!pr.age ? `<div class="card tight row"><div class="grow small">Add your age and sex in More for a closer forecast.</div><button class="btn-sm" data-action="goto-profile">Add</button></div>` : ""}
-    <p class="muted small" style="margin:16px 4px 0;line-height:1.5">Forecasts come from a model trained on 2.2 million results from 271,000 raw powerlifters (OpenPowerlifting), applied to your own estimated maxes. On 2024–2026 results it never saw, it was off by about 7 kg on average, and the real result landed inside the shaded range 8 times in 10. Gym estimates aren't tested maxes, so treat it as a guide. It runs on your phone with no internet.</p>`;
+    <button class="text full" data-action="fc-help">How the lift forecast works</button>`;
 }
 
 /* ---------- Body ---------- */
@@ -1785,6 +1841,9 @@ const actions = {
   metric: (el) => { ui.progress.metric = el.dataset.m; refresh(); },
   range: (el) => { ui.progress.range = el.dataset.r; refresh(); },
   "progress-view": (el) => { ui.progress.view = el.dataset.v; refresh(); },
+  "fc-help": () => openSheet("How the lift forecast works", FC_HELP),
+  "sheet-close": () => closeSheet(),
+  "fc-guide": () => openGuide(),
   "fc-retry": () => { loadForecastModel(); refresh(); },
   "fc-lift": (el) => { fcSettings().lift = el.dataset.k; save(); refresh(); if (el.closest(".list")) window.scrollTo({ top: 0, behavior: "smooth" }); },
   "fc-plan": (el) => { fcSettings().plan = el.dataset.p; save(); refresh(); },

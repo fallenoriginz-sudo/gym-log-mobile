@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How the Lift Forecast Works</title>
+<style>
+/* Layout: one reading column (~68ch) with full-width figures; each model gets a section with idea, math, code. Plate colors (IPF: red 25, blue 20, yellow 15, green 10 kg) mark the model families. */
+:root {
+  --bg: #0e0f11; --surface: #17181c; --ink: #f2f2f3; --muted: #a1a3ab; --line: #2a2c33; --code-bg: #1f2126;
+  --accent: #34d399; --red: #f06b6b; --blue: #6f9bf2; --yellow: #f5b94a; --green: #5cc982; --grey: #8b8d96;
+  color-scheme: dark;
+  --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  --body: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+body { background: var(--bg); color: var(--ink); font: 17px/1.6 var(--body); padding-inline: 18px; padding-block: env(safe-area-inset-top, 0px) calc(64px + env(safe-area-inset-bottom, 0px)); }
+.wrap { max-width: 720px; margin: 0 auto; }
+header { padding-block: 48px 8px; }
+.kicker { font: 700 13px/1 var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 800 clamp(36px, 7vw, 56px)/1.02 var(--display); letter-spacing: -0.02em; margin: 12px 0 16px; text-wrap: balance; }
+h2 { font: 800 28px/1.15 var(--display); letter-spacing: -0.01em; margin: 56px 0 8px; text-wrap: balance; }
+h3 { font: 700 20px/1.25 var(--display); margin: 32px 0 4px; display: flex; align-items: center; gap: 10px; }
+p, li { max-width: 68ch; }
+.lede { font-size: 20px; color: var(--muted); }
+a { color: var(--accent); }
+.num { font-variant-numeric: tabular-nums; }
+strong { font-weight: 600; }
+
+.answer { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 28px 0 8px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
+.stat b { display: block; font: 800 30px/1.1 var(--display); }
+.stat span { font: 500 14px/1.35 var(--display); color: var(--muted); }
+
+.toc { font: 500 15px/1.9 var(--display); color: var(--muted); columns: 2 220px; margin: 20px 0 0; padding: 0; list-style: none; }
+.toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); }
+.toc a:hover { border-color: var(--accent); }
+
+pre { background: var(--code-bg); border-radius: 12px; padding: 14px 16px; overflow-x: auto; font: 13.5px/1.55 var(--mono); margin: 14px 0; }
+code { font-family: var(--mono); font-size: .86em; background: var(--code-bg); padding: 1px 5px; border-radius: 5px; }
+pre code { background: none; padding: 0; font-size: inherit; }
+.c { color: var(--muted); }
+.file { font: 600 12px/1 var(--mono); color: var(--muted); margin: 18px 0 -8px; }
+
+.math { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin: 14px 0; overflow-x: auto; }
+math { font-size: 1.12em; }
+.math p { margin: 8px 0 0; font-size: 15px; color: var(--muted); }
+
+figure { margin: 22px 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; overflow-x: auto; }
+figcaption { font: 500 14px/1.45 var(--display); color: var(--muted); margin-top: 10px; }
+figure svg { display: block; width: 100%; height: auto; min-width: 300px; }
+.t { fill: var(--ink); font: 500 12px var(--display); }
+.ts { fill: var(--muted); font: 500 11px var(--display); }
+.tb { fill: var(--ink); font: 700 12px var(--display); }
+
+.plate { width: 12px; height: 26px; border-radius: 3px; flex: none; }
+.p-red { background: var(--red); } .p-blue { background: var(--blue); } .p-yellow { background: var(--yellow); } .p-green { background: var(--green); } .p-grey { background: var(--grey); }
+
+.tbl { overflow-x: auto; margin: 16px 0; }
+table { border-collapse: collapse; width: 100%; font: 15px/1.4 var(--display); min-width: 520px; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+th { font-weight: 700; font-size: 13px; color: var(--muted); }
+td.r, th.r { text-align: right; font-variant-numeric: tabular-nums; }
+tr.best td { font-weight: 700; }
+tr.best td:first-child { color: var(--accent); }
+
+.note { border-left: 3px solid var(--yellow); padding: 4px 0 4px 14px; margin: 18px 0; color: var(--ink); }
+.feat { display: grid; grid-template-columns: minmax(130px, 220px) 1fr; gap: 6px 16px; font-size: 16px; margin: 14px 0; }
+.feat code { white-space: nowrap; } .feat div:nth-child(odd) { display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; }
+.feat div { min-width: 0; }
+footer { margin-top: 56px; font: 500 14px/1.5 var(--display); color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; }
+@media (max-width: 520px) { .feat { grid-template-columns: 1fr; gap: 0 0; } .feat div:nth-child(odd) { margin-top: 10px; } }
+</style>
+</head><body>
+
+<div class="wrap">
+<header>
+  <div class="kicker">Gym Log · forecasting</div>
+  <h1>How the lift forecast works</h1>
+  <p class="lede">The math, the code and each model behind your forecast, and how far off it usually is. Every number on this page comes from the real training run.</p>
+  <div class="answer">
+    <div class="stat"><b class="num">7.1 kg</b><span>average miss on results the models never saw</span></div>
+    <div class="stat"><b class="num">4.7%</b><span>the same miss as a share of the lift</span></div>
+    <div class="stat"><b class="num">80%</b><span>of real results land inside the shaded range</span></div>
+    <div class="stat"><b class="num">9.1 kg</b><span>miss if you guess "same as last time"</span></div>
+  </div>
+  <ul class="toc">
+    <li><a href="#question">1. The question we ask</a></li>
+    <li><a href="#data">2. Turning results into lessons</a></li>
+    <li><a href="#features">3. What the model looks at</a></li>
+    <li><a href="#testing">4. Testing it fairly</a></li>
+    <li><a href="#models">5. The models, one by one</a></li>
+    <li><a href="#stack">6. Stacking them together</a></li>
+    <li><a href="#range">7. The likely range</a></li>
+    <li><a href="#accuracy">8. How accurate it is</a></li>
+    <li><a href="#phone">9. Running it on your phone</a></li>
+  </ul>
+</header>
+
+<h2 id="question">1. The question we ask</h2>
+<p>Every model answers the same question: <strong>given someone's history, what will their best lift be on a future date?</strong> Instead of predicting kilograms directly, it predicts the <em>percentage change</em> from the last best. A 5% gain means the same thing for a 60 kg bench as a 200 kg deadlift, so one model can learn from everybody.</p>
+<p>To make percentages add up neatly, we use the natural log of the ratio. Statisticians call this the log return:</p>
+<div class="math">
+  <math display="block"><mi>y</mi><mo>=</mo><mi>ln</mi><mo>⁡</mo><mrow><mo>(</mo><mfrac><msub><mtext>next best</mtext></msub><msub><mtext>last best</mtext></msub></mfrac><mo>)</mo></mrow><mspace width="1.5em"/><mtext>and back again:</mtext><mspace width="1em"/><msub><mtext>forecast kg</mtext></msub><mo>=</mo><msub><mtext>last best</mtext></msub><mo>×</mo><msup><mi>e</mi><mover><mi>y</mi><mo>^</mo></mover></msup></math>
+  <p>Example: squat goes 120 → 126 kg. y = ln(126/120) = ln(1.05) ≈ 0.049. If a model predicts ŷ = 0.049 for someone at 120 kg, the forecast is 120 × e<sup>0.049</sup> ≈ 126 kg. For small changes, y is roughly the percentage (0.049 ≈ 5%).</p>
+</div>
+
+<h2 id="data">2. Turning results into lessons</h2>
+<p>The data is <strong>OpenPowerlifting</strong>, a public-domain record of 4.05 million meet results from 1.0 million lifters. We kept raw (no supportive suits) lifting only, because that matches gym training. Each lifter's results, in date order, become a chain of lessons. Each lesson has the shape "here's what we knew before, here's what happened next."</p>
+<figure>
+<svg viewBox="0 0 640 170" role="img" aria-label="A lifter's four meets become three training examples">
+  <line x1="40" y1="60" x2="600" y2="60" stroke="var(--line)" stroke-width="2"/>
+  <g>
+    <circle cx="80" cy="60" r="9" fill="var(--grey)"/><text class="t" x="80" y="35" text-anchor="middle">Mar 2021</text><text class="tb" x="80" y="90" text-anchor="middle">100 kg</text>
+    <circle cx="240" cy="60" r="9" fill="var(--grey)"/><text class="t" x="240" y="35" text-anchor="middle">Oct 2021</text><text class="tb" x="240" y="90" text-anchor="middle">112.5 kg</text>
+    <circle cx="400" cy="60" r="9" fill="var(--grey)"/><text class="t" x="400" y="35" text-anchor="middle">Jun 2022</text><text class="tb" x="400" y="90" text-anchor="middle">120 kg</text>
+    <circle cx="560" cy="60" r="9" fill="var(--accent)"/><text class="t" x="560" y="35" text-anchor="middle">Feb 2023</text><text class="tb" x="560" y="90" text-anchor="middle">122.5 kg</text>
+  </g>
+  <g fill="none" stroke="var(--accent)" stroke-width="1.5">
+    <path d="M80 104 Q160 132 240 104"/><path d="M240 104 Q320 132 400 104"/><path d="M400 104 Q480 132 560 104"/>
+  </g>
+  <text class="ts" x="160" y="150" text-anchor="middle">example 1: y = ln(112.5/100) = 0.118</text>
+  <text class="ts" x="320" y="166" text-anchor="middle">example 2: y = 0.065</text>
+  <text class="ts" x="480" y="150" text-anchor="middle">example 3: y = 0.021</text>
+</svg>
+<figcaption>One illustrative lifter with four meets gives three examples. Each example only uses what came before it, just like a real forecast.</figcaption>
+</figure>
+<p>After cleaning, that gave <strong class="num">2,184,085 examples from 270,686 lifters</strong>, across squat, bench and deadlift. The typical gap between results is 171 days. Cleaning dropped obvious errors, such as two different people with the same name (a lift jumping more than 60%, or bodyweight changing more than 35%).</p>
+<p class="file">02_features.py</p>
+<pre><code><span class="c"># sort each lifter's results by date, then look one step back</span>
+g = d.groupby(["lift", "Name"], sort=False)
+d["prev_kg"]  = g.kg.shift(1)          <span class="c"># last best before this result</span>
+d["prev_date"] = g.Date.shift(1)
+d["n_prior"]  = g.cumcount()            <span class="c"># how many results came before</span>
+d["y"] = np.log(d.kg / d.prev_kg)       <span class="c"># the target: log change</span></code></pre>
+
+<h2 id="features">3. What the model looks at</h2>
+<p>Each example has 17 inputs, called <em>features</em>. They're things the app can also work out from your own logs:</p>
+<div class="feat">
+  <div><code>lift_id</code></div><div>Squat, bench or deadlift.</div>
+  <div><code>sex_m</code>, <code>age</code></div><div>From your profile.</div>
+  <div><code>log_prev_kg</code></div><div>How heavy your last best was (as a log).</div>
+  <div><code>prev_rel</code></div><div>Last best ÷ bodyweight. A 120 kg squat at 82 kg is 1.46× bodyweight.</div>
+  <div><code>n_prior</code>, <code>log_train</code></div><div>How many results you have and how long you've been at it. This is your training age.</div>
+  <div><code>log_gap</code></div><div>How far ahead we're forecasting.</div>
+  <div><code>prev_rate</code>, <code>overall_rate</code></div><div>Your recent and long-run gain per year.</div>
+  <div><code>best_ratio</code></div><div>Last best ÷ all-time best. Below 1 means you're under your PR, so there's room to bounce back.</div>
+  <div><code>bw_change</code></div><div>Planned bodyweight change between now and the target date.</div>
+  <div><code>prev_bw</code> <code>BodyweightKg</code> <code>bw_total_change</code> <code>prev_gap_days</code> <code>tested</code></div><div>Supporting details.</div>
+</div>
+<p>Two patterns in the raw data explain most of what the models learn:</p>
+<figure>
+<svg viewBox="0 0 640 230" role="img" aria-label="Median gain by number of previous results, and by bodyweight change">
+  <text class="tb" x="20" y="20">Median gain by experience</text>
+  <text class="tb" x="340" y="20">Median gain by bodyweight change</text>
+  <g>
+    <line x1="20" y1="190" x2="300" y2="190" stroke="var(--line)"/>
+    <rect x="30"  y="94"  width="40" height="96" fill="var(--accent)"/><text class="t num" x="50"  y="88" text-anchor="middle">5.3%</text><text class="ts" x="50"  y="206" text-anchor="middle">1st</text>
+    <rect x="85"  y="125" width="40" height="65" fill="var(--accent)"/><text class="t num" x="105" y="119" text-anchor="middle">3.6%</text><text class="ts" x="105" y="206" text-anchor="middle">2nd</text>
+    <rect x="140" y="147" width="40" height="43" fill="var(--accent)"/><text class="t num" x="160" y="141" text-anchor="middle">2.4%</text><text class="ts" x="160" y="206" text-anchor="middle">3rd–4th</text>
+    <rect x="195" y="161" width="40" height="29" fill="var(--accent)"/><text class="t num" x="215" y="155" text-anchor="middle">1.6%</text><text class="ts" x="215" y="206" text-anchor="middle">5th–8th</text>
+    <rect x="250" y="189" width="40" height="1"  fill="var(--accent)"/><text class="t num" x="270" y="183" text-anchor="middle">0%</text><text class="ts" x="270" y="206" text-anchor="middle">9th+</text>
+    <text class="ts" x="160" y="224" text-anchor="middle">gap after the Nth result</text>
+  </g>
+  <g>
+    <line x1="340" y1="190" x2="620" y2="190" stroke="var(--line)"/>
+    <rect x="350" y="189" width="40" height="1"  fill="var(--blue)"/><text class="t num" x="370" y="183" text-anchor="middle">0%</text><text class="ts" x="370" y="206" text-anchor="middle">≤ −5%</text>
+    <rect x="405" y="170" width="40" height="20" fill="var(--blue)"/><text class="t num" x="425" y="164" text-anchor="middle">1.1%</text><text class="ts" x="425" y="206" text-anchor="middle">−2 to −5%</text>
+    <rect x="460" y="149" width="40" height="41" fill="var(--blue)"/><text class="t num" x="480" y="143" text-anchor="middle">2.3%</text><text class="ts" x="480" y="206" text-anchor="middle">±2%</text>
+    <rect x="515" y="111" width="40" height="79" fill="var(--blue)"/><text class="t num" x="535" y="105" text-anchor="middle">4.4%</text><text class="ts" x="535" y="206" text-anchor="middle">+2 to +5%</text>
+    <rect x="570" y="52"  width="40" height="138" fill="var(--blue)"/><text class="t num" x="590" y="46" text-anchor="middle">7.7%</text><text class="ts" x="590" y="206" text-anchor="middle">≥ +5%</text>
+    <text class="ts" x="480" y="224" text-anchor="middle">bodyweight change between results</text>
+  </g>
+</svg>
+<figcaption>Real medians from the 2.18M examples. Gains shrink as you get more experienced, and gaining weight goes with gaining strength. That second pattern is why the app asks for your bodyweight plan.</figcaption>
+</figure>
+
+<h2 id="testing">4. Testing it fairly</h2>
+<p>A model that has seen the answers can look brilliant and still be useless. So we split by <strong>date</strong>, the way real forecasting works. Models learn from the past, and we grade them only on the future.</p>
+<figure>
+<svg viewBox="0 0 640 110" role="img" aria-label="Timeline split: train before July 2022, early stop late 2022, meta 2023, test 2024 onward">
+  <rect x="20"  y="30" width="330" height="34" rx="6" fill="var(--grey)" fill-opacity=".35"/>
+  <rect x="352" y="30" width="40"  height="34" rx="6" fill="var(--yellow)" fill-opacity=".55"/>
+  <rect x="394" y="30" width="80"  height="34" rx="6" fill="var(--blue)" fill-opacity=".45"/>
+  <rect x="476" y="30" width="144" height="34" rx="6" fill="var(--accent)" fill-opacity=".55"/>
+  <text class="tb" x="185" y="52" text-anchor="middle">Learn · before Jul 2022 · 1.17M</text>
+  <text class="ts" x="372" y="84" text-anchor="middle">Stop</text>
+  <text class="ts" x="372" y="98" text-anchor="middle">97k</text>
+  <text class="tb" x="434" y="52" text-anchor="middle">2023</text>
+  <text class="ts" x="434" y="84" text-anchor="middle">Blend · 232k</text>
+  <text class="tb" x="548" y="52" text-anchor="middle">2024 – Oct 2026</text>
+  <text class="ts" x="548" y="84" text-anchor="middle">Final exam · 688k</text>
+</svg>
+<figcaption><b>Learn</b> fits the models. <b>Stop</b> (late 2022) decides when to stop adding trees. <b>Blend</b> (2023) decides how much to trust each model in the stack. The <b>final exam</b> is never looked at until the very end.</figcaption>
+</figure>
+
+<h2 id="models">5. The models, one by one</h2>
+<p>We tried six approaches, from simple to complex. They're arranged so each one shows what the next adds.</p>
+
+<h3><span class="plate p-grey"></span>Baseline: "same as last time"</h3>
+<p>The forecast is your last best, unchanged (ŷ = 0). It sounds silly, but any model that can't beat it is worthless. It misses by <strong>9.1 kg</strong> on average.</p>
+
+<h3><span class="plate p-grey"></span>Lookup table</h3>
+<p>Put everyone into buckets by lift, sex, experience, gap and strength level, then predict each bucket's median gain. It's like a chart in a training book. It misses by <strong>8.0 kg</strong>.</p>
+<pre><code>tbl = train.assign(b=buckets(train)).groupby("b").y.median()
+pred = buckets(test).map(tbl).fillna(overall_median)</code></pre>
+
+<h3><span class="plate p-green"></span>Ridge regression with splines</h3>
+<p>A weighted sum of the inputs. Each feature gets a weight w, and the model picks the weights that make the squared errors smallest. <em>Ridge</em> adds a penalty that keeps the weights small so they don't chase noise. <em>Splines</em> let a feature bend, so "gains slow down with experience" can curve instead of being a straight line.</p>
+<div class="math">
+  <math display="block"><mover><mi>y</mi><mo>^</mo></mover><mo>=</mo><mi>b</mi><mo>+</mo><munder><mo>∑</mo><mi>j</mi></munder><msub><mi>w</mi><mi>j</mi></msub><msub><mi>x</mi><mi>j</mi></msub><mspace width="2em"/><mtext>choose </mtext><mi>w</mi><mtext> to minimise </mtext><munder><mo>∑</mo><mi>i</mi></munder><msup><mrow><mo>(</mo><msub><mi>y</mi><mi>i</mi></msub><mo>−</mo><msub><mover><mi>y</mi><mo>^</mo></mover><mi>i</mi></msub><mo>)</mo></mrow><mn>2</mn></msup><mo>+</mo><mi>α</mi><munder><mo>∑</mo><mi>j</mi></munder><msubsup><mi>w</mi><mi>j</mi><mn>2</mn></msubsup></math>
+  <p>α = 10 here. It misses by <strong>7.5 kg</strong>. It's limited because it can't easily learn that two things together, like "beginner and gaining weight", matter more than each alone.</p>
+</div>
+
+<h3><span class="plate p-red"></span>LightGBM: gradient-boosted decision trees</h3>
+<p>A <strong>decision tree</strong> asks yes/no questions until it reaches an answer. This is the real top of the first tree LightGBM built:</p>
+<figure>
+<svg viewBox="0 0 640 200" role="img" aria-label="Top of LightGBM's first decision tree">
+  <g fill="none" stroke="var(--line)" stroke-width="1.5">
+    <path d="M320 46 L170 100"/><path d="M320 46 L470 100"/>
+    <path d="M170 124 L90 160"/><path d="M170 124 L250 160"/><path d="M470 124 L390 160"/><path d="M470 124 L550 160"/>
+  </g>
+  <rect x="200" y="14" width="240" height="34" rx="8" fill="var(--surface)" stroke="var(--red)"/>
+  <text class="tb" x="320" y="36" text-anchor="middle">Bodyweight up more than 3.1%?</text>
+  <rect x="60" y="100" width="220" height="26" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text class="t" x="170" y="118" text-anchor="middle">No: long-run rate below −2.9%/yr?</text>
+  <rect x="360" y="100" width="220" height="26" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text class="t" x="470" y="118" text-anchor="middle">Yes: long-run rate below −2.4%/yr?</text>
+  <text class="ts" x="90" y="176" text-anchor="middle">lift size?</text>
+  <text class="ts" x="250" y="176" text-anchor="middle">lost lots of weight?</text>
+  <text class="ts" x="390" y="176" text-anchor="middle">gained 10%+?</text>
+  <text class="ts" x="550" y="176" text-anchor="middle">gained 8%+?</text>
+  <text class="ts" x="320" y="196" text-anchor="middle">… up to 127 leaves, each holding a small adjustment to the forecast</text>
+</svg>
+<figcaption>The first question the model learned to ask was about bodyweight change, which matches the pattern in section 3.</figcaption>
+</figure>
+<p>One tree is crude. <strong>Boosting</strong> builds trees one after another. Each new tree is trained on the <em>mistakes</em> (residuals) the trees before it are still making, and adds a small correction:</p>
+<div class="math">
+  <math display="block"><msub><mi>F</mi><mi>m</mi></msub><mo>(</mo><mi>x</mi><mo>)</mo><mo>=</mo><msub><mi>F</mi><mrow><mi>m</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>(</mo><mi>x</mi><mo>)</mo><mo>+</mo><mi>η</mi><mo>·</mo><msub><mtext>tree</mtext><mi>m</mi></msub><mo>(</mo><mi>x</mi><mo>)</mo><mspace width="2em"/><msub><mtext>tree</mtext><mi>m</mi></msub><mtext> fits </mtext><mi>y</mi><mo>−</mo><msub><mi>F</mi><mrow><mi>m</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>(</mo><mi>x</mi><mo>)</mo></math>
+  <p>η = 0.05 is the learning rate: each tree fixes only 5% of what it sees, so no single tree can overreact. It stopped at <strong>491 trees</strong>, when the late-2022 "Stop" data stopped improving. It misses by <strong>7.13 kg</strong>.</p>
+</div>
+<p class="file">03_train.py</p>
+<pre><code>m = lgb.train(dict(objective="regression", learning_rate=0.05, num_leaves=127,
+                   min_data_in_leaf=200, feature_fraction=0.8, bagging_fraction=0.8),
+              train_set, 4000, valid_sets=[stop_set],
+              callbacks=[lgb.early_stopping(100)])   <span class="c"># stop when 100 trees in a row don't help</span></code></pre>
+
+<h3><span class="plate p-red"></span>LightGBM with Huber loss</h3>
+<p>The same thing with a different way of scoring mistakes. Squared error lets one bad record (a typo, a bombed-out meet) dominate. <strong>Huber loss</strong> is squared for small errors and straight-line for big ones, so outliers count less:</p>
+<div class="math">
+  <math display="block"><mi>L</mi><mo>(</mo><mi>r</mi><mo>)</mo><mo>=</mo><mrow><mo>{</mo><mtable><mtr><mtd><mfrac><mn>1</mn><mn>2</mn></mfrac><msup><mi>r</mi><mn>2</mn></msup></mtd><mtd><mtext>if </mtext><mo>|</mo><mi>r</mi><mo>|</mo><mo>≤</mo><mi>δ</mi></mtd></mtr><mtr><mtd><mi>δ</mi><mo>(</mo><mo>|</mo><mi>r</mi><mo>|</mo><mo>−</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><mi>δ</mi><mo>)</mo></mtd><mtd><mtext>otherwise</mtext></mtd></mtr></mtable></mrow><mspace width="2em"/><mi>δ</mi><mo>=</mo><mn>0.08</mn><mtext> (about 8%)</mtext></math>
+  <p>This was the <strong>best single model</strong>: 7.07 kg average miss, using 822 trees.</p>
+</div>
+
+<h3><span class="plate p-blue"></span>XGBoost</h3>
+<p>Another boosting library. LightGBM grows each tree by splitting the single most useful leaf next. XGBoost grows level by level, here up to 8 levels deep. Different tree shapes make different mistakes, which helps the stack later. It stopped at 549 trees and misses by <strong>7.13 kg</strong>.</p>
+
+<h3><span class="plate p-yellow"></span>Neural network</h3>
+<p>A multilayer perceptron with three layers of 128, 64 and 32 "neurons". Each neuron takes a weighted sum of the layer before it and passes it through ReLU, which just means "keep it if positive, else zero". Layer by layer, it builds its own combinations of the features.</p>
+<div class="math">
+  <math display="block"><msub><mi>h</mi><mn>1</mn></msub><mo>=</mo><mtext>max</mtext><mo>(</mo><mn>0</mn><mo>,</mo><msub><mi>W</mi><mn>1</mn></msub><mi>x</mi><mo>+</mo><msub><mi>b</mi><mn>1</mn></msub><mo>)</mo><mo>,</mo><mspace width="0.6em"/><msub><mi>h</mi><mn>2</mn></msub><mo>=</mo><mtext>max</mtext><mo>(</mo><mn>0</mn><mo>,</mo><msub><mi>W</mi><mn>2</mn></msub><msub><mi>h</mi><mn>1</mn></msub><mo>+</mo><msub><mi>b</mi><mn>2</mn></msub><mo>)</mo><mo>,</mo><mspace width="0.6em"/><mo>…</mo><mo>,</mo><mspace width="0.6em"/><mover><mi>y</mi><mo>^</mo></mover><mo>=</mo><msub><mi>w</mi><mtext>out</mtext></msub><mo>·</mo><msub><mi>h</mi><mn>3</mn></msub><mo>+</mo><msub><mi>b</mi><mtext>out</mtext></msub></math>
+  <p>Trained with the Adam optimizer on a 600,000-row sample, stopping when it no longer improved. It misses by <strong>7.20 kg</strong>. That's slightly behind the trees, which is typical for table-shaped data like this.</p>
+</div>
+
+<h2 id="stack">6. Stacking them together</h2>
+<p>Each model gets things wrong in slightly different ways, so averaging them can cancel some errors out. <strong>Stacking</strong> learns the best mix. We take every model's predictions on the 2023 "Blend" data, which none of them trained on, and find non-negative weights that best match what really happened:</p>
+<div class="math">
+  <math display="block"><msub><mover><mi>y</mi><mo>^</mo></mover><mtext>stack</mtext></msub><mo>=</mo><munder><mo>∑</mo><mi>k</mi></munder><msub><mi>w</mi><mi>k</mi></msub><msub><mover><mi>y</mi><mo>^</mo></mover><mi>k</mi></msub><mspace width="1.5em"/><msub><mi>w</mi><mi>k</mi></msub><mo>≥</mo><mn>0</mn><mo>,</mo><mspace width="0.5em"/><mtext>fit by non-negative least squares</mtext></math>
+</div>
+<figure>
+<svg viewBox="0 0 640 170" role="img" aria-label="Stacking weights: XGBoost 0.30, LightGBM Huber 0.27, LightGBM 0.25, neural net 0.20, lookup 0.02, ridge 0">
+  <g class="num">
+    <text class="t" x="150" y="24" text-anchor="end">XGBoost</text><rect x="160" y="12" width="357" height="16" rx="3" fill="var(--blue)"/><text class="tb" x="525" y="25">0.30</text>
+    <text class="t" x="150" y="50" text-anchor="end">LightGBM (Huber)</text><rect x="160" y="38" width="318" height="16" rx="3" fill="var(--red)"/><text class="tb" x="486" y="51">0.27</text>
+    <text class="t" x="150" y="76" text-anchor="end">LightGBM</text><rect x="160" y="64" width="299" height="16" rx="3" fill="var(--red)" fill-opacity=".7"/><text class="tb" x="467" y="77">0.25</text>
+    <text class="t" x="150" y="102" text-anchor="end">Neural net</text><rect x="160" y="90" width="239" height="16" rx="3" fill="var(--yellow)"/><text class="tb" x="407" y="103">0.20</text>
+    <text class="t" x="150" y="128" text-anchor="end">Lookup table</text><rect x="160" y="116" width="22" height="16" rx="3" fill="var(--grey)"/><text class="tb" x="190" y="129">0.02</text>
+    <text class="t" x="150" y="154" text-anchor="end">Ridge + splines</text><rect x="160" y="142" width="1" height="16" fill="var(--green)"/><text class="tb" x="168" y="155">0</text>
+  </g>
+</svg>
+<figcaption>The weights the stack learned. Ridge got zero because the tree models already capture everything it knows.</figcaption>
+</figure>
+<p>We also tried a second stacker, a small LightGBM that sees all the models' predictions plus the gap and experience. It didn't do better (7.08 kg).</p>
+<div class="note"><strong>The truthful result:</strong> stacking had the best RMSE (10.34 kg) and R², but it beat the best single model by about 0.01 kg. The boosted trees had already found nearly all the signal in these features. More complex models stop helping when the remaining error is mostly day-to-day randomness: sleep, nerves, a missed lift.</div>
+
+<h2 id="range">7. The likely range</h2>
+<p>A single number hides how uncertain the future is, so two extra LightGBM models predict the <strong>10th and 90th percentiles</strong> instead of the middle. They use <em>quantile</em> (pinball) loss, which punishes being on one side more than the other:</p>
+<div class="math">
+  <math display="block"><msub><mi>L</mi><mi>τ</mi></msub><mo>(</mo><mi>r</mi><mo>)</mo><mo>=</mo><mrow><mo>{</mo><mtable><mtr><mtd><mi>τ</mi><mo>·</mo><mi>r</mi></mtd><mtd><mi>r</mi><mo>≥</mo><mn>0</mn></mtd></mtr><mtr><mtd><mo>(</mo><mi>τ</mi><mo>−</mo><mn>1</mn><mo>)</mo><mo>·</mo><mi>r</mi></mtd><mtd><mi>r</mi><mo>&lt;</mo><mn>0</mn></mtd></mtr></mtable></mrow><mspace width="2em"/><mi>τ</mi><mo>=</mo><mn>0.1</mn><mtext> for the low edge, </mtext><mn>0.9</mn><mtext> for the high edge</mtext></math>
+  <p>The check: if the range is honest, real results should fall inside it 80% of the time. On the 2024–2026 final exam they did <strong>80.1%</strong> of the time (81.1% for the phone model).</p>
+</div>
+
+<h2 id="accuracy">8. How accurate it is</h2>
+<p>All scores are on the <strong>688,012 results from 2024 to October 2026</strong> that no model had seen.</p>
+<div class="tbl"><table>
+  <thead><tr><th>Model</th><th class="r">Avg miss (kg)</th><th class="r">RMSE (kg)</th><th class="r">Avg miss %</th><th class="r">R²</th><th class="r">Up/down right</th></tr></thead>
+  <tbody class="num">
+    <tr><td>Same as last time</td><td class="r">9.12</td><td class="r">13.23</td><td class="r">5.92</td><td class="r">−0.17</td><td class="r">–</td></tr>
+    <tr><td>Lookup table</td><td class="r">8.01</td><td class="r">11.92</td><td class="r">5.28</td><td class="r">0.11</td><td class="r">60.9%</td></tr>
+    <tr><td>Ridge + splines</td><td class="r">7.50</td><td class="r">10.91</td><td class="r">4.94</td><td class="r">0.25</td><td class="r">64.8%</td></tr>
+    <tr><td>Neural net</td><td class="r">7.20</td><td class="r">10.50</td><td class="r">4.77</td><td class="r">0.30</td><td class="r">66.0%</td></tr>
+    <tr><td>XGBoost</td><td class="r">7.13</td><td class="r">10.40</td><td class="r">4.72</td><td class="r">0.31</td><td class="r">66.3%</td></tr>
+    <tr><td>LightGBM</td><td class="r">7.13</td><td class="r">10.40</td><td class="r">4.71</td><td class="r">0.31</td><td class="r">66.3%</td></tr>
+    <tr class="best"><td>LightGBM (Huber)</td><td class="r">7.07</td><td class="r">10.35</td><td class="r">4.69</td><td class="r">0.31</td><td class="r">66.7%</td></tr>
+    <tr class="best"><td>Stacked blend</td><td class="r">7.07</td><td class="r">10.34</td><td class="r">4.70</td><td class="r">0.31</td><td class="r">66.8%</td></tr>
+    <tr><td>Phone model</td><td class="r">7.14</td><td class="r">10.42</td><td class="r">4.72</td><td class="r">0.31</td><td class="r">–</td></tr>
+  </tbody>
+</table></div>
+<p><strong>How to read the columns:</strong></p>
+<ul>
+  <li><strong>Avg miss</strong> (mean absolute error) is the typical gap between forecast and reality. For someone squatting 150 kg, 7 kg is about one small-plate jump either way.</li>
+  <li><strong>RMSE</strong> squares the misses before averaging, so the occasional big miss counts more. It's higher than the average miss because some results are surprises.</li>
+  <li><strong>R² = 0.31</strong> means the model explains about 31% of the variation in how much people gain. The rest is randomness no model can see from a training log.</li>
+  <li><strong>Up/down right</strong> is how often the model correctly called whether the lift would rise or fall.</li>
+</ul>
+<figure>
+<svg viewBox="0 0 640 220" role="img" aria-label="Average miss by forecast distance">
+  <text class="tb" x="20" y="18">Average miss (kg) by how far ahead</text>
+  <g class="num">
+    <line x1="60" y1="180" x2="620" y2="180" stroke="var(--line)"/>
+    <line x1="60" y1="120" x2="620" y2="120" stroke="var(--line)" stroke-dasharray="2 4"/><text class="ts" x="52" y="124" text-anchor="end">5</text>
+    <line x1="60" y1="60" x2="620" y2="60" stroke="var(--line)" stroke-dasharray="2 4"/><text class="ts" x="52" y="64" text-anchor="end">10</text>
+    <text class="ts" x="52" y="184" text-anchor="end">0</text>
+    <!-- scale: 12 px per kg, baseline 180 -->
+    <rect x="90"  y="101" width="28" height="79"  fill="var(--grey)"/><rect x="122" y="113" width="28" height="67" fill="var(--accent)"/>
+    <text class="ts" x="104" y="96" text-anchor="middle">6.6</text><text class="tb" x="136" y="108" text-anchor="middle">5.6</text>
+    <text class="t" x="120" y="198" text-anchor="middle">under 2 mo</text>
+    <rect x="230" y="93"  width="28" height="87"  fill="var(--grey)"/><rect x="262" y="108" width="28" height="72" fill="var(--accent)"/>
+    <text class="ts" x="244" y="88" text-anchor="middle">7.3</text><text class="tb" x="276" y="103" text-anchor="middle">6.0</text>
+    <text class="t" x="260" y="198" text-anchor="middle">2–4 mo</text>
+    <rect x="370" y="78"  width="28" height="102" fill="var(--grey)"/><rect x="402" y="100" width="28" height="80" fill="var(--accent)"/>
+    <text class="ts" x="384" y="73" text-anchor="middle">8.5</text><text class="tb" x="416" y="95" text-anchor="middle">6.6</text>
+    <text class="t" x="400" y="198" text-anchor="middle">4–8 mo</text>
+    <rect x="510" y="39"  width="28" height="141" fill="var(--grey)"/><rect x="542" y="76" width="28" height="104" fill="var(--accent)"/>
+    <text class="ts" x="524" y="34" text-anchor="middle">11.8</text><text class="tb" x="556" y="71" text-anchor="middle">8.7</text>
+    <text class="t" x="540" y="198" text-anchor="middle">8+ mo</text>
+  </g>
+  <rect x="380" y="208" width="10" height="10" fill="var(--grey)"/><text class="ts" x="395" y="217">same as last time</text>
+  <rect x="510" y="208" width="10" height="10" fill="var(--accent)"/><text class="ts" x="525" y="217">best model</text>
+</svg>
+<figcaption>Further ahead is harder for everyone, but the model's advantage grows with distance: 1 kg better at under two months, 3 kg better beyond eight.</figcaption>
+</figure>
+<div class="note"><strong>What it means for you.</strong> The model learned from competitors' meet-day maxes. Your app numbers are estimated 1RMs from gym sets, so expect it to be a little cautious for beginners and the range to be a little narrow. It knows squat, bench and deadlift only. As your own log grows, your history features carry more weight, so forecasts get more personal over time.</div>
+
+<h2 id="phone">9. Running it on your phone</h2>
+<p>The full stack is too heavy for an offline phone app, so the app uses one compact LightGBM: 600 trees for the middle forecast, plus 300 each for the low and high edges. That's about 330 KB, and it misses by 7.14 kg, only 0.07 kg behind the full stack. Python exports the trees as plain lists of numbers, and about 20 lines of JavaScript walk them:</p>
+<p class="file">forecast.js</p>
+<pre><code>function treePredict(tree, x) {
+  let n = 0;
+  for (;;) {
+    const goLeft = x[tree.f[n]] &lt;= tree.t[n];       <span class="c">// "is feature f at most threshold t?"</span>
+    const c = goLeft ? tree.l[n] : tree.r[n];
+    if (c &lt; 0) return tree.v[~c];                  <span class="c">// reached a leaf: its small adjustment</span>
+    n = c;
+  }
+}
+<span class="c">// (simplified: the real file also handles missing values)</span>
+<span class="c">// forecast = last best × e^(sum of every tree's adjustment)</span>
+const y = model.trees.reduce((s, t) =&gt; s + treePredict(t, x), 0);
+const forecastKg = lastBest * Math.exp(y);</code></pre>
+<p>I checked that the JavaScript gives the same answers as Python on 2,000 test cases, to within 0.00002. To draw the chart, the app runs this every two weeks into the future, with your bodyweight plan filled in for each date. The first 8 weeks are eased in from today's value, and the line is never allowed to go backwards.</p>
+
+<footer>Data: OpenPowerlifting (public domain), 4,048,766 results, pulled 12 Oct 2026. Code: <code>forecast-model/01_build_dataset.py</code> through <code>05_check_js_parity.js</code> in the project files. Built with pandas, scikit-learn, LightGBM 4.7 and XGBoost 3.4.</footer>
+</div>
+
+</body></html>

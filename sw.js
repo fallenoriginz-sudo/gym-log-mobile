@@ -1,5 +1,5 @@
 // App shell cache. Bump VERSION whenever app files change.
-const VERSION = "gymlog-v6";
+const VERSION = "gymlog-v7";
 const FILES = [
   "./",
   "./index.html",
@@ -10,6 +10,7 @@ const FILES = [
   "./icons/icon-512.png",
   "./icons/apple-touch-icon.png",
   "./forecast-model.json",
+  "./forecast-guide.html",
 ];
 
 self.addEventListener("install", (e) => {

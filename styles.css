@@ -282,3 +282,26 @@ label.field > span { display: block; font-size: 13px; color: var(--muted); margi
 .chart .past-line { fill: none; stroke: var(--soft); stroke-width: 2; stroke-linejoin: round; }
 .chart .today-line { stroke: var(--line2); stroke-dasharray: 3 4; }
 .view > * + .scroller { margin-top: 16px; }
+
+/* Help sheet */
+.help-btn { width: 32px; height: 32px; min-height: 32px; padding: 0; border-radius: 99px; font-size: 16px; font-weight: 700; color: var(--soft); background: var(--raised); }
+.sheet { position: fixed; inset: 0; z-index: 30; display: flex; align-items: flex-end; justify-content: center; }
+.sheet-bg { position: absolute; inset: 0; background: rgba(0, 0, 0, .55); animation: fade .2s var(--ease); }
+.sheet-card {
+  position: relative; width: 100%; max-width: 640px; max-height: 86vh; display: flex; flex-direction: column;
+  background: var(--card); border: 1px solid var(--line); border-bottom: 0; border-radius: 24px 24px 0 0;
+  padding: 8px 20px calc(16px + env(safe-area-inset-bottom)); animation: rise .25s var(--ease);
+}
+.sheet-head { padding: 8px 0; }
+.sheet-body { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-bottom: 8px; }
+.sheet-body h3 { margin-top: 16px; }
+.sheet-body h3:first-child { margin-top: 4px; }
+.sheet-body p { margin: 6px 0 0; color: var(--soft); font-size: 15px; line-height: 1.5; }
+body.sheet-open { overflow: hidden; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.sheet-body ul { margin: 6px 0 0; padding-left: 20px; color: var(--soft); font-size: 15px; line-height: 1.5; }
+.sheet-body li + li { margin-top: 4px; }
+.guide { position: absolute; inset: 0; background: var(--bg); display: flex; flex-direction: column; animation: rise .25s var(--ease); }
+.guide-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: calc(env(safe-area-inset-top) + 8px) 16px 8px; border-bottom: 1px solid var(--line); }
+.guide-done { background: none; color: var(--accent); font-weight: 700; padding: 0 4px; }
+.guide iframe { flex: 1; width: 100%; border: 0; background: var(--bg); }
